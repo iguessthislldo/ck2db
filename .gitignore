@@ -1,0 +1,6 @@
+*.tab.*
+*.yy.*
+capture_autosaves
+read_ck2
+game
+scraps
