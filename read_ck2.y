@@ -1,3 +1,9 @@
+/*
+ * ck2_read
+ * Process contents of ck2 files
+ *
+ * Bison file for read_ck2
+ */
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,8 +21,14 @@ extern size_t level;
 
 iconv_t toutf8;
 
+// Print Indent on stdout according to level
 void indent();
 
+void cleanup();
+
+/*
+ * Remove '=' that bison is leaving in for what ever reason on object names
+ */
 char * fix_name(char * name) {
     size_t i = 0;
     while (name[i]) i++;
@@ -150,25 +162,40 @@ dict_array: dict_array dict| dict;
 
 %%
 
+void cleanup() {
+    if (yyin) fclose(yyin);
+    iconv_close(toutf8);
+}
+
 int main(int argc, char * argv[]) {
+    
+    // Init iconv
     toutf8 = iconv_open("UTF-8", "LATIN6");
     if (toutf8 == (iconv_t) -1) {
         fprintf(stderr, "This iconv does not support \"LATIN6\" to \"UTF-8\"!");
         return 1;
     }
+
+    // Set up global variables
     yydebug = 0;
     lineno = 1;
     level = 1;
-	yyin = fopen(argv[1], "r");
+    
+    // Open File
+    yyin = fopen(argv[1], "r");
     if (!yyin) {
         fprintf(stderr, "Couldn't Open %s: %s\n", argv[1], strerror(errno));
+        cleanup();
         return 1;
     }
-	do { 
-		yyparse();
-	} while(!feof(yyin));
-    fclose(yyin);
-	return 0;
+
+    // Parse File
+    do {
+        yyparse();
+    } while(!feof(yyin));
+
+    cleanup();
+    return 0;
 }
 
 void indent() {
@@ -176,7 +203,7 @@ void indent() {
 }
 
 void yyerror(const char* s) {
-	fprintf(stderr, "Parse error on line %lu: %s\n", lineno, s);
-    fclose(yyin);
-	exit(1);
+    fprintf(stderr, "Parse error on line %lu: %s\n", lineno, s);
+    cleanup();
+    exit(1);
 }

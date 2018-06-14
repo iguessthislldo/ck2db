@@ -1,3 +1,9 @@
+/*
+ * ck2_read
+ * Process contents of ck2 files
+ *
+ * Flex file for read_ck2
+ */
 %option noyywrap
 
 %{
