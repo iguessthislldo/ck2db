@@ -1,6 +1,7 @@
 *.tab.*
 *.yy.*
 capture_autosaves
-read_ck2
+ck2json.c
+ck2json
 game
 scraps

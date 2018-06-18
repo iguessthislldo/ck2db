@@ -10,6 +10,12 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
+
+#include "ck2json.h"
+
+Node * root;
+Node * current_node;
 
 #include <iconv.h>
 
@@ -40,36 +46,6 @@ bool characters = false;
 bool characters_done = false;
 bool character_name = false;
 
-void process_name(char * name) {
-    switch(level) {
-    case 1:
-        if (characters) {
-            if (strcmp(name, "character")) {
-                characters = false;
-                characters_done = true;
-            }
-        } else if (!characters_done) {
-            if (!strcmp(name, "character")) {
-                characters = true;
-            }
-        }
-        break;
-    case 3:
-        if (!strcmp(name, "bn")) {
-            character_name = true;
-        }
-        break;
-    default:
-        break;
-    }
-}
-
-void process_int(int value) {
-    if (level == 2 && characters) {
-        printf("%d: ", value);
-    }
-}
-
 char * convert_to_utf8(char * string) {
     size_t in_left = strlen(string);
     char * in = string;
@@ -85,24 +61,6 @@ char * convert_to_utf8(char * string) {
     return result;
 }
 
-void process_string(char * string) {
-    switch(level) {
-    case 3:
-        if (character_name) {
-            char * utf8 = convert_to_utf8(string);
-            printf("%s\n", utf8);
-            character_name = false;
-            free(utf8);
-        }
-    default:
-        break;
-    }
-}
-
-struct dict {
-    struct dict * parent;
-};
-
 %}
 
 %code requires {
@@ -110,39 +68,64 @@ void yyerror(const char* s);
 }
 
 %union {
-    int int_value;
-    float float_value;
-    char * string_value;
+    Node * node;
 }
 
 %token MAGIC_NUMBER_TOKEN
 %token EQUALS_TOKEN
 %token START_TOKEN
 %token END_TOKEN
-%token<string_value> NAME_TOKEN
-%token<string_value> DATE_TOKEN
-%token<string_value> STRING_TOKEN
-%token<int_value> INT_TOKEN
-%token<int_value> BOOL_TOKEN
-%token<float_value> FLOAT_TOKEN
+%token<node> NAME_TOKEN
+%token<node> DATE_TOKEN
+%token<node> STRING_TOKEN
+%token<node> INT_TOKEN
+%token<node> BOOL_TOKEN
+%token<node> FLOAT_TOKEN
+
+%type<node> entries
+%type<node> entry
+%type<node> key
+%type<node> value
+%type<node> dict
+%type<node> array
+%type<node> array_contents
+%type<node> int_array 
+%type<node> float_array 
+%type<node> name_array 
+%type<node> dict_array 
 
 %start ck2file
 
 %%
 
-ck2file: MAGIC_NUMBER_TOKEN entries END_TOKEN;
+ck2file: MAGIC_NUMBER_TOKEN entries END_TOKEN 
+    {
+        root = new_node(OBJ_NODE_TYPE);
+        root->value.childern = $2;
+    }
 
-entries: entries entry | entry;
+entries:
+    entries entry { $$ = node_append($1, $2); }
+    | entry
+;
 
-entry: key EQUALS_TOKEN value;
+entry: key EQUALS_TOKEN value
+    {
+        $$ = new_prop($1, $3);
+    }
+;
 
-key: NAME_TOKEN { process_name(fix_name($1)); }
-   | INT_TOKEN { process_int($1); }
+key: NAME_TOKEN
+    {
+        $1->value.string_value = fix_name($1->value.string_value);
+        $$ = $1;
+    }
+   | INT_TOKEN
    | DATE_TOKEN
    ;
 
 value: DATE_TOKEN
-     | STRING_TOKEN { process_string($1); }
+     | STRING_TOKEN
      | BOOL_TOKEN
      | INT_TOKEN
      | FLOAT_TOKEN
@@ -151,14 +134,25 @@ value: DATE_TOKEN
      | dict
      ;
 
-dict: START_TOKEN entries END_TOKEN | START_TOKEN END_TOKEN;
+dict: START_TOKEN entries END_TOKEN {
+        Node * d = new_node(OBJ_NODE_TYPE);
+        d->value.childern = $2;
+        $$ = d;
+}
+    | START_TOKEN END_TOKEN {
+        $$ = new_node(OBJ_NODE_TYPE);
+    };
 
-array: START_TOKEN array_contents END_TOKEN;
+array: START_TOKEN array_contents END_TOKEN {
+    Node * d = new_node(ARRAY_NODE_TYPE);
+    d->value.childern = $2;
+    $$ = d;
+}
 array_contents: int_array | float_array | name_array | dict_array;
-int_array: int_array INT_TOKEN | INT_TOKEN;
-float_array: float_array FLOAT_TOKEN | FLOAT_TOKEN;
-name_array: name_array NAME_TOKEN | NAME_TOKEN;
-dict_array: dict_array dict| dict;
+int_array: int_array INT_TOKEN { $$ = node_append($1, $2); } | INT_TOKEN;
+float_array: float_array FLOAT_TOKEN { $$ = node_append($1, $2); } | FLOAT_TOKEN;
+name_array: name_array NAME_TOKEN { $$ = node_append($1, $2); } | NAME_TOKEN;
+dict_array: dict_array dict { $$ = node_append($1, $2); } | dict;
 
 %%
 
@@ -177,7 +171,7 @@ int main(int argc, char * argv[]) {
     }
 
     // Set up global variables
-    yydebug = 0;
+    //yydebug = 0;
     lineno = 1;
     level = 1;
     
@@ -193,6 +187,8 @@ int main(int argc, char * argv[]) {
     do {
         yyparse();
     } while(!feof(yyin));
+
+    emit_json(stdout, root);
 
     cleanup();
     return 0;
