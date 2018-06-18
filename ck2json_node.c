@@ -70,15 +70,15 @@ void print_char(FILE * f, char c) {
         break;
     case 2:
         if (!(c == ',' || c == '}')) {
-            fputc(f, '1');
+            fputc('1', f);
         }
         state = 0;
     }
     // Remove CK2 Specfic Characters
-    if (c >= 0x74 && c <= 0xa0) {
+    if (c >= 0x7f && c <= 0xa0) {
         c = '?';
     }
-    fputc(f, c);
+    fputc(c, f);
 }
 
 void print_string(FILE * f, const char * s) {
@@ -87,9 +87,9 @@ void print_string(FILE * f, const char * s) {
 
 void print_quoted_string(FILE * f, char * s) {
     if (*s != '\"') {
-        print_char('\"');
+        print_char(f, '\"');
         print_string(f, s);
-        print_char('\"');
+        print_char(f, '\"');
     } else {
         print_string(f, s);
     }
@@ -99,35 +99,35 @@ void emit_json(FILE* file, Node *node) {
     if (!node) return;
     switch(node->type) {
     case OBJ_NODE_TYPE:
-        print_char('{');
-        emit_json(file, node->childern);
-        print_string("{\n");
+        print_char(file, '{');
+        emit_json(file, node->value.childern);
+        print_string(file, "}\n");
         break;
     case PROP_NODE_TYPE:
-        print_quoted_string(file, node->value.prop_type.name->value.string_type);
-        print_char(':');
-        emit_json(file, node->value.prop_type.value);
+        print_quoted_string(file, node->value.prop_value.name->value.string_value);
+        print_char(file, ':');
+        emit_json(file, node->value.prop_value.value);
         break;
     case INT_NODE_TYPE:
-        print_string(file, node->value.string_type);
+        print_string(file, node->value.string_value);
         break;
     case ARRAY_NODE_TYPE:
-        print_char('[');
-        emit_json(file, node->childern);
-        print_string("]\n");
+        print_char(file, '[');
+        emit_json(file, node->value.childern);
+        print_string(file, "]\n");
         break;
     case FLOAT_NODE_TYPE:
-        print_string(file, node->value.string_type);
+        print_string(file, node->value.string_value);
         break;
     case BOOL_NODE_TYPE:
-        print_string(file, node->value.string_type);
+        print_string(file, node->value.string_value);
         break;
     case STR_NODE_TYPE:
-        print_quoted_string(file, node->value.prop_type.name->value.string_type);
+        print_quoted_string(file, node->value.string_value);
     }
     if (node->sibling) {
-        print_char(',');
-        emit_json(node->sibling);
+        print_char(file, ',');
+        emit_json(file, node->sibling);
     }
 }
 

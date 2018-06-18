@@ -9,7 +9,7 @@ ck2json.tab.c: ck2json.y
 ck2json.yy.c: ck2json.l
 	flex -o $@ $^
 
-ck2json: ck2json.tab.c ck2json.yy.c ck2json.c
+ck2json: ck2json.tab.c ck2json.yy.c ck2json_node.c
 	gcc -g $^ -o $@ -lfl 
 
 .PHONY: clean

@@ -44,19 +44,20 @@ def insert_character(c, cid, cdict):
 if __name__ == "__main__":
     print('Reading Save Game...', end='')
     sys.stdout.flush()
-    save = read_json('game/0769-07-01')
+    save = read_json('/dev/stdin')
     print(' DONE')
-    print('Connecting to Database...',end='')
-    db, c = connect('ck2', 'ck2password')
-    print(' DONE')
-    c.execute('use ck2;')
+    print(len(save['character']))
+    # print('Connecting to Database...',end='')
+    # db, c = connect('ck2', 'ck2password')
+    # print(' DONE')
+    # c.execute('use ck2;')
 
-    print('Loading Characters Basic Info...', end='')
-    for cid, cdict in save['character'].items():
-        insert_character(c, cid, cdict)
-    db.commit()
-    print(' DONE')
+    # print('Loading Characters Basic Info...', end='')
+    # for cid, cdict in save['character'].items():
+    #     insert_character(c, cid, cdict)
+    # db.commit()
+    # print(' DONE')
 
-    c.close()
-    db.close()
+    # c.close()
+    # db.close()
 
