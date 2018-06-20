@@ -31,13 +31,15 @@ union node_value {
 };
 
 typedef struct node {
-    struct node *parent, *sibling;
+    struct node *head, *sibling;
     enum node_type type;
     union node_value value;
 } Node;
 
 Node * new_node(enum node_type type);
 
+Node * new_object(Node * childern);
+Node * new_array(Node * childern);
 Node * new_int(char * value);
 Node * new_float(char * value);
 Node * new_string(char * value);
@@ -45,7 +47,9 @@ Node * new_string_keep(char * value);
 Node * new_bool(char * value);
 Node * new_prop(Node * name, Node * value);
 
+Node * node_append(Node * childern, Node * newest);
+Node * node_set(Node * childern, Node * new_prop);
+
 void emit_json(FILE* file, Node *node);
-Node * node_append(Node * oldest, Node * newest);
 
 #endif

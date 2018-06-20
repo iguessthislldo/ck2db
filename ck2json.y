@@ -42,6 +42,17 @@ char * fix_name(char * name) {
     return name;
 }
 
+char * fix_string(char * string) {
+    size_t l = strlen(string);
+    if (string[l-1] != '\"') {
+        char * s;
+        for (s = string + 1; *s != '\"'; s++);
+        s++;
+        *s = '\0';
+    }
+    return string;
+}
+
 bool characters = false;
 bool characters_done = false;
 bool character_name = false;
@@ -98,22 +109,14 @@ void yyerror(const char* s);
 
 %%
 
-ck2file: MAGIC_NUMBER_TOKEN entries END_TOKEN 
-    {
-        root = new_node(OBJ_NODE_TYPE);
-        root->value.childern = $2;
-    }
+ck2file: MAGIC_NUMBER_TOKEN entries END_TOKEN { root = new_object($2); }
 
 entries:
-    entries entry { $$ = node_append($1, $2); }
+    entries entry { $$ = node_set($1, $2); }
     | entry
 ;
 
-entry: key EQUALS_TOKEN value
-    {
-        $$ = new_prop($1, $3);
-    }
-;
+entry: key EQUALS_TOKEN value { $$ = new_prop($1, $3); } ;
 
 key: NAME_TOKEN
     {
@@ -125,7 +128,7 @@ key: NAME_TOKEN
    ;
 
 value: DATE_TOKEN
-     | STRING_TOKEN
+     | STRING_TOKEN { $1->value.string_value = fix_string($1->value.string_value); $$ = $1; }
      | BOOL_TOKEN
      | INT_TOKEN
      | FLOAT_TOKEN
@@ -134,20 +137,10 @@ value: DATE_TOKEN
      | dict
      ;
 
-dict: START_TOKEN entries END_TOKEN {
-        Node * d = new_node(OBJ_NODE_TYPE);
-        d->value.childern = $2;
-        $$ = d;
-}
-    | START_TOKEN END_TOKEN {
-        $$ = new_node(OBJ_NODE_TYPE);
-    };
+dict: START_TOKEN entries END_TOKEN { $$ = new_object($2); }
+    | START_TOKEN END_TOKEN { $$ = new_object(0); };
 
-array: START_TOKEN array_contents END_TOKEN {
-    Node * d = new_node(ARRAY_NODE_TYPE);
-    d->value.childern = $2;
-    $$ = d;
-}
+array: START_TOKEN array_contents END_TOKEN { $$ = new_array($2); }
 array_contents: int_array | float_array | name_array | dict_array;
 int_array: int_array INT_TOKEN { $$ = node_append($1, $2); } | INT_TOKEN;
 float_array: float_array FLOAT_TOKEN { $$ = node_append($1, $2); } | FLOAT_TOKEN;
