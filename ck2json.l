@@ -23,7 +23,8 @@ size_t level;
 "#".* ; // Ignore Comments
 [\n] { lineno++; }
 "CK2txt" { return MAGIC_NUMBER_TOKEN; }
-[ \t\r] ; // ignore all other whitespace
+[\x00-\x20] ; // ignore ascii control and whitespace characters
+[\x7f-\xa0] ; // ignore characters not in Latin6
 "{" { level++; return START_TOKEN; }
 "}" { level--; return END_TOKEN; }
 "=" { return EQUALS_TOKEN; }
@@ -47,8 +48,8 @@ size_t level;
 [+-]?[0-9]+ { yylval.node = new_int(yytext); return INT_TOKEN; }
 "yes" { yylval.node = new_bool("true"); return BOOL_TOKEN; }
 "no" { yylval.node = new_bool("false"); return BOOL_TOKEN; }
-[A-Za-z0-9\_\.\-]+ { yylval.node = new_string(yytext); return NAME_TOKEN; }
+[\'A-Za-z0-9\_\.\-\xa1-\xff]+ { yylval.node = new_string(yytext); return NAME_TOKEN; }
 \"[^"]*\" { yylval.node = new_string(yytext); return STRING_TOKEN; }
-. { yyerror("Invalid Token"); }
+. { fprintf(stderr, "Invalid Character is %s\n", yytext); yyerror("Invalid Token"); }
 
 %%

@@ -102,8 +102,9 @@ void yyerror(const char* s);
 %type<node> array_contents
 %type<node> int_array 
 %type<node> float_array 
-%type<node> name_array 
 %type<node> dict_array 
+%type<node> name_string_array 
+%type<node> name_string
 
 %start ck2file
 
@@ -143,10 +144,11 @@ dict: START_TOKEN entries END_TOKEN { $$ = new_object($2); }
     | START_TOKEN END_TOKEN { $$ = new_object(0); };
 
 array: START_TOKEN array_contents END_TOKEN { $$ = new_array($2); }
-array_contents: int_array | float_array | name_array | dict_array;
+array_contents: int_array | float_array | name_string_array | dict_array;
 int_array: int_array INT_TOKEN { $$ = node_append($1, $2); } | INT_TOKEN;
 float_array: float_array FLOAT_TOKEN { $$ = node_append($1, $2); } | FLOAT_TOKEN;
-name_array: name_array NAME_TOKEN { $$ = node_append($1, $2); } | NAME_TOKEN;
+name_string_array: name_string_array name_string { $$ = node_append($1, $2); } | name_string;
+name_string: NAME_TOKEN | STRING_TOKEN;
 dict_array: dict_array dict { $$ = node_append($1, $2); } | dict;
 
 %%
