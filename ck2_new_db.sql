@@ -310,6 +310,7 @@ create table Barony_Status (
 
 /* Test Data =================================================================== */
 
+/*
 insert into Characters values (1, "0000-00-00", null, true, null, null);
 insert into Characters values (2, "0000-00-00", null, false, null, null);
 insert into Characters values (3, "0000-00-00", null, false, 1, 2);
@@ -325,4 +326,5 @@ insert into Character_Status value (1, "0000-00-00", "Char1", 0.0,0.0,0.0,0.0, 0
 insert into Character_Status value (2, "0000-00-00", "Char2", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", null, 1);
 insert into Character_Status value (3, "0000-00-00", "Char3", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", 2, 4);
 insert into Character_Status value (4, "0000-00-00", "Char4", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", null, 3);
+*/
 
