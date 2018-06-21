@@ -34,24 +34,45 @@ CREATE TABLE Dynasties (
 );
 
 /* Characters */
+
 CREATE TABLE Characters (
     id INT UNSIGNED KEY,
     birth CHAR(10) NOT NULL,
     death CHAR(10),
     is_female BOOLEAN NOT NULL,
 
-    mother_id INT UNSIGNED
-        CHECK(mother_id != character_id),
+    mother_id INT UNSIGNED check (mother_id != id),
     FOREIGN KEY (mother_id)
         REFERENCES Characters(id)
         ON DELETE CASCADE,
 
-    real_father_id INT UNSIGNED,
-        CHECK(real_father_id != character_id),
+    real_father_id INT UNSIGNED CHECK(real_father_id != id),
     FOREIGN KEY (real_father_id)
         REFERENCES Characters(id)
         ON DELETE CASCADE
 );
+
+/* Enforce the fact the mothers are female if a character has one */
+create function is_female(id int unsigned) returns boolean return id is null or (
+(select count(c.id) from Characters as c where c.id = id and c.is_female = true) = 1);
+delimiter $$
+create trigger mother_is_female before insert on Characters for each row begin
+    if not is_female(new.mother_id) then
+        signal sqlstate '45000' set message_text = 'Mother is not female';
+    end if;
+    end; $$
+delimiter ;
+
+/* Enforce the fact the fathers are male if a character has one */
+create function is_male(id int unsigned) returns boolean return id is null or (
+(select count(c.id) from Characters as c where c.id = id and c.is_female = false) = 1);
+delimiter $$
+create trigger father_is_male before insert on Characters for each row begin
+    if not is_male(new.real_father_id) then
+        signal sqlstate '45000' set message_text = 'Father is not male';
+    end if;
+    end; $$
+delimiter ;
 
 /* Character_Status */
 CREATE TABLE Character_Status (
@@ -121,7 +142,9 @@ CREATE TABLE Character_Traits (
 );
 
 /* User =================================================================== */
-drop user if exists 'ck2';
-create user 'ck2' identified by 'ck2password';
+create or replace user 'ck2' identified by 'ck2password';
 grant all privileges on `ck2`.* to 'ck2'@localhost;
 
+insert into Characters values (1, "0000-00-00", null, true, null, null);
+insert into Characters values (2, "0000-00-00", null, false, null, null);
+insert into Characters values (3, "0000-00-00", null, false, 1, 2);
