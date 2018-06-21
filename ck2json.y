@@ -110,6 +110,8 @@ void yyerror(const char* s);
 %%
 
 ck2file: MAGIC_NUMBER_TOKEN entries END_TOKEN { root = new_object($2); }
+       | entries { root = new_object($1); }
+       ;
 
 entries:
     entries entry { $$ = node_set($1, $2); }

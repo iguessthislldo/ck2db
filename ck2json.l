@@ -20,9 +20,10 @@ size_t level;
 
 %%
 
+"#".* ; // Ignore Comments
 [\n] { lineno++; }
 "CK2txt" { return MAGIC_NUMBER_TOKEN; }
-[ \t] ; // ignore all other whitespace
+[ \t\r] ; // ignore all other whitespace
 "{" { level++; return START_TOKEN; }
 "}" { level--; return END_TOKEN; }
 "=" { return EQUALS_TOKEN; }
