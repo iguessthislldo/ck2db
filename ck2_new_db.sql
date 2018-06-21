@@ -185,7 +185,8 @@ create table Title_Status (
 );
 
 create table Empires (
-    title_id varchar(100),
+    title_id varchar(100)
+        check (title_id regexp 'e_.+'),
     foreign key (title_id)
         references Titles(id)
         on delete cascade
@@ -203,7 +204,8 @@ create table Empire_Status (
 );
 
 create table Kingdoms (
-    title_id varchar(100),
+    title_id varchar(100)
+        check (title_id regexp 'k_.+'),
     foreign key (title_id)
         references Titles(id)
         on delete cascade
@@ -229,7 +231,8 @@ create table Kingdom_Status (
 );
 
 create table Duchies (
-    title_id varchar(100),
+    title_id varchar(100)
+        check (title_id regexp 'd_.+'),
     foreign key (title_id)
         references Titles(id)
         on delete cascade
@@ -255,7 +258,8 @@ create table Duchy_Status (
 );
 
 create table Counties (
-    title_id varchar(100),
+    title_id varchar(100)
+        check (title_id regexp 'c_.+'),
     foreign key (title_id)
         references Titles(id)
         on delete cascade,
@@ -287,7 +291,8 @@ create table County_Status (
 );
 
 create table Baronies (
-    title_id varchar(100),
+    title_id varchar(100)
+        check (title_id regexp 'b_.+'),
     foreign key (title_id)
         references Titles(id)
         on delete cascade,
