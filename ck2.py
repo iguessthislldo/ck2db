@@ -5,11 +5,78 @@
 import sys
 import os
 import _mysql_exceptions
+import subprocess
+from pathlib import Path
+import json
 
-steam_path = os.getenv('HOME')
+ck2_path = Path(os.getenv('HOME')) / ".steam/steam/steamapps/common/Crusader Kings II"
+
+def get_else(d, k, default):
+    return d[k] if k in d else default
+
+def get_str_else(d, k, default):
+    return '"{}"'.format(d[k]) if k in d else default
+
+def load_loc():
+    '''Load Game Localization, allowing us to convert name internal to the
+    game into the actual names, or at least what the game displays for
+    English.
+    '''
+    import csv
+    locdb = {}
+    for csv_file in ck2_path.glob('localisation/**/*.csv'):
+        with csv_file.open(encoding='iso8859_10', errors='replace') as f:
+            csv_data = csv.reader(f, delimiter=';')
+            for row in csv_data:
+                if len(row) >= 2:
+                    locdb[row[0]] = row[1]
+    return locdb
+
+def yield_id_and_names(values):
+    for i, n in values.items():
+        yield {'id': i, 'name': n}
+
+def remove_from_dict(d, *keys):
+    for k in keys:
+        try:
+            del d[k]
+        except:
+            pass
+
+def load_cultures(db, c, loc):
+    culture_groups = {}
+    for cul_file in ck2_path.glob('common/cultures/**/*.txt'):
+        culture_groups.update(json.loads(
+            subprocess.check_output(["./ck2json", str(cul_file)]).decode("utf-8")))
+    cultures = {}
+    for group in culture_groups.values():
+        for culture in group.keys():
+            cultures[culture] = get_else(loc, culture, culture)
+    remove_from_dict(cultures, 'graphical_cultures')
+    import_into_db(c, cultures, yield_id_and_names,
+        'insert into Cultures (id, name) values (%(id)s, %(name)s)')
+    return len(cultures)
+
+def load_religions(db, c, loc):
+    religion_groups = {}
+    for p in ck2_path.glob('common/religions/**/*.txt'):
+        religion_groups.update(json.loads(
+            subprocess.check_output(["./ck2json", str(p)]).decode("utf-8")))
+    religions = {}
+    for group in religion_groups.values():
+        for religion in group.keys():
+            religions[religion] = get_else(loc, religion, religion)
+    remove_from_dict(religions,
+        'has_coa_on_barony_only', 'graphical_culture', 'crusade_cb',
+        'playable', 'ai_peaceful', 'ai_convert_same_group',
+        'ai_convert_other_group', 'color', 'male_names', 'female_names',
+        'ai_fabricate_claims', 'hostile_within_group', 'secret_religion'
+    )
+    import_into_db(c, religions, yield_id_and_names,
+        'insert into Religions (id, name) values (%(id)s, %(name)s)')
+    return len(religions)
 
 def read_json(path):
-    import json
     with open(path, encoding='iso8859_10', errors='replace') as f:
         return json.load(f)
 
@@ -34,12 +101,6 @@ def execute_sql_file(cursor, filepath):
         for line in statements:
             if not line.isspace():
                 c.execute(line)
-
-def get_else(d, k, default):
-    return d[k] if k in d else default
-
-def get_str_else(d, k, default):
-    return '"{}"'.format(d[k]) if k in d else default
 
 def char_key_stats(save):
     def dict_inc(d, key, inc=1):
@@ -118,7 +179,7 @@ def import_into_db(c, save, get_next, sql):
         row = deferred_rows.pop()
         if row is None:
             current_size = len(deferred_rows)
-            if current_size == last_size:
+            if current_size == last_size and current_size > 0:
                 sys.exit("Could not defer all the rows")
             elif current_size:
                 last_size = len(deferred_rows)
@@ -149,13 +210,39 @@ def import_db(save):
     c.close()
     db.close()
 
+def import_gamedata():
+    print('Connecting to Database...',end='')
+    db, c = connect('ck2', 'ck2password')
+    print(' DONE')
+    c.execute('use ck2;')
+
+    print('Loading Localization...', end='')
+    sys.stdout.flush()
+    loc = load_loc()
+    print(' DONE', len(loc), 'strings')
+
+    print('Importing Cultures...', end='')
+    sys.stdout.flush()
+    n = load_cultures(db, c, loc)
+    print(' DONE', n, 'cultures')
+
+    print('Importing Religions...', end='')
+    sys.stdout.flush()
+    n = load_religions(db, c, loc)
+    print(' DONE', n, 'religions')
+
+    db.commit()
+    db.close()
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         print("Invalid Arguments", file=sys.stderr)
         sys.exit(1)
 
-    if sys.argv[1] == 'import':
+    if sys.argv[1] == 'import_save':
         import_db(get_save('/dev/stdin'))
+    elif sys.argv[1] == 'import_gamedata':
+        import_gamedata()
     elif sys.argv[1] == 'charfields':
         char_key_stats(get_save('/dev/stdin'))
     else:
