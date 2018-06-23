@@ -192,8 +192,10 @@ Node * node_set(Node * childern, Node * new_prop) {
             PROP_VALUE(child_prop) = new_node(ARRAY_NODE_TYPE);
             PROP_VALUE(child_prop)->value.childern = current_value;
             // Name or new_prop will not be used anymore
+            /*
             free(name);
             free(new_prop);
+            */
         }
         // Append the new property value to the array in the child property
         PROP_VALUE(child_prop)->value.childern = node_append(PROP_VALUE(child_prop)->value.childern, value);

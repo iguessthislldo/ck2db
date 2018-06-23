@@ -61,7 +61,7 @@ create table Characters (
 create function is_female(id int unsigned) returns boolean return id is null or (
     (select count(c.id) from Characters as c where c.id = id and c.is_female = true) = 1);
 delimiter $$
-create trigger mother_is_female before insert on Characters for each row begin
+create trigger mother_is_female after insert on Characters for each row begin
     if not is_female(new.mother_id) then
         signal sqlstate '45000' set message_text = 'Mother is not female';
     end if;
@@ -72,7 +72,7 @@ delimiter ;
 create function is_male(id int unsigned) returns boolean return id is null or (
     (select count(c.id) from Characters as c where c.id = id and c.is_female = false) = 1);
 delimiter $$
-create trigger father_is_male before insert on Characters for each row begin
+create trigger father_is_male after insert on Characters for each row begin
     if not is_male(new.real_father_id) then
         signal sqlstate '45000' set message_text = 'Father is not male';
     end if;
@@ -102,7 +102,7 @@ create table Character_Status (
     intrigue tinyint unsigned not null,
     learning tinyint unsigned not null,
 
-    dynasty_id int unsigned not null,
+    dynasty_id int unsigned,
     foreign key (dynasty_id)
         references Dynasties(id)
         on delete cascade,
