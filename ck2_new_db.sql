@@ -18,18 +18,6 @@ grant all privileges on `ck2`.* to 'ck2'@localhost;
 /* Snapshots */
 create table Snapshots (date char(10) key);
 
-/* Cultures */
-create table Cultures (
-    id varchar(100) key,
-    name varchar(100) not null
-);
-
-/* Religion */
-create table Religions (
-    id varchar(100) key,
-    name varchar(100) not null
-);
-
 /* Character Information ================================================== */
 
 /* Dynasties */
@@ -107,23 +95,8 @@ create table Character_Status (
         references Dynasties(id)
         on delete cascade,
 
-    culture_id varchar(100) not null,
-    foreign key (culture_id)
-        references Cultures(id)
-        on delete cascade,
-
-    religion_id varchar(100) not null,
-    foreign key (religion_id)
-        references Religions(id)
-        on delete cascade,
-
     perceived_father_id int unsigned check (character_id != perceived_father_id),
     foreign key (perceived_father_id)
-        references Characters(id)
-        on delete cascade,
-
-    spouse_id int unsigned check (character_id != spouse_id),
-    foreign key (spouse_id)
         references Characters(id)
         on delete cascade
 );
@@ -137,13 +110,33 @@ create trigger perceived_father_is_male before insert on Character_Status for ea
     end; $$
 delimiter ;
 
+create table Marriages (
+    husband_id int unsigned,
+    foreign key (husband_id, date)
+        references Character_Status (character_id, date)
+        on delete cascade,
+    wife_id int unsigned,
+    date char(10),
+    foreign key (wife_id, date)
+        references Character_Status (character_id, date)
+        on delete cascade,
+    key(husband_id, wife_id, date)
+);
+
 /* Enforce the fact a spouse is of the opposite sex if a character has one */
-create function is_opposite_sex(id int unsigned, this_sex boolean) returns boolean return
-    id is null or ((select count(c.id) from Characters as c where c.id = id and c.is_female != this_sex) = 1);
+create function is_opposite_sex(husband_id int unsigned, wife_id int unsigned)
+    returns boolean
+    return
+        ((select count(c.id) from Characters as c
+            where c.id = husband_id and c.is_female = false) = 1)
+        and
+        ((select count(c.id) from Characters as c
+            where c.id = wife_id and c.is_female = true) = 1)
+        ;
 
 delimiter $$
-create trigger spouse_is_opposite_sex before insert on Character_Status for each row begin
-    if not is_opposite_sex(new.spouse_id, is_female(new.character_id)) then
+create trigger spouse_is_opposite_sex before insert on Marriages for each row begin
+    if not is_opposite_sex(new.husband_id, new.wife_id) then
         signal sqlstate '45000' set message_text = 'Marriage is Same Sex! O:';
     end if;
     end; $$
@@ -160,7 +153,7 @@ create table Character_Traits (
     foreign key (character_id, date)
         references Character_Status (character_id, date)
         on delete cascade,
-    trait_id int unsigned,
+    trait_id int unsigned not null,
     foreign key (trait_id)
         references Traits(id)
         on delete cascade,
@@ -181,7 +174,7 @@ create table Title_Status (
         references Character_Status (character_id, date)
         on delete cascade,
     key(title_id, date),
-    name varchar(10)
+    name varchar(100)
 );
 
 create table Empires (
@@ -224,9 +217,9 @@ create table Kingdom_Status (
     foreign key (de_jure_empire_id)
         references Empires (title_id)
         on delete cascade,
-    de_facto_empire_id varchar(100),
-    foreign key (de_facto_empire_id)
-        references Empires (title_id)
+    de_facto_liege_id varchar(100),
+    foreign key (de_facto_liege_id, date)
+        references Title_Status(title_id, date)
         on delete cascade
 );
 
@@ -251,9 +244,9 @@ create table Duchy_Status (
     foreign key (de_jure_kingdom_id)
         references Kingdoms (title_id)
         on delete cascade,
-    de_facto_kingdom_id varchar(100),
-    foreign key (de_facto_kingdom_id)
-        references Kingdoms (title_id)
+    de_facto_liege_id varchar(100),
+    foreign key (de_facto_liege_id, date)
+        references Title_Status(title_id, date)
         on delete cascade
 );
 
@@ -266,8 +259,7 @@ create table Counties (
     duchy_id varchar(100),
     foreign key (duchy_id)
         references Duchies(title_id)
-        on delete cascade,
-    independent boolean not null
+        on delete cascade
 );
 
 create table County_Status (
@@ -280,13 +272,9 @@ create table County_Status (
         references Counties (title_id)
         on delete cascade,
 
-    culture_id varchar(100) not null,
-    foreign key (culture_id)
-        references Cultures(id)
-        on delete cascade,
-    religion_id varchar(100) not null,
-    foreign key (religion_id)
-        references Religions(id)
+    de_facto_liege_id varchar(100),
+    foreign key (de_facto_liege_id, date)
+        references Title_Status(title_id, date)
         on delete cascade
 );
 
@@ -310,26 +298,11 @@ create table Barony_Status (
         on delete cascade,
     foreign key (title_id)
         references Baronies (title_id)
+        on delete cascade,
+
+    de_facto_liege_id varchar(100),
+    foreign key (de_facto_liege_id, date)
+        references Title_Status(title_id, date)
         on delete cascade
 );
-
-/* Test Data =================================================================== */
-
-/*
-insert into Characters values (1, "0000-00-00", null, true, null, null);
-insert into Characters values (2, "0000-00-00", null, false, null, null);
-insert into Characters values (3, "0000-00-00", null, false, 1, 2);
-insert into Characters values (4, "0000-00-00", null, true, null, null);
-
-insert into Dynasties values (1, "a Dynasty");
-insert into Cultures values ("a", "a Culture");
-insert into Religions values ("a", "a Religion");
-
-insert into Snapshots values ("0000-00-00");
-
-insert into Character_Status value (1, "0000-00-00", "Char1", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", null, 2);
-insert into Character_Status value (2, "0000-00-00", "Char2", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", null, 1);
-insert into Character_Status value (3, "0000-00-00", "Char3", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", 2, 4);
-insert into Character_Status value (4, "0000-00-00", "Char4", 0.0,0.0,0.0,0.0, 0,0,0,0,0, 1, "a","a", null, 3);
-*/
 
