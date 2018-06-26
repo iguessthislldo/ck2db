@@ -104,7 +104,7 @@ bool copy_autosave() {
     // Build Destination Path
     snprintf(dest_file_path, path_size, "%s/%s.ck2", dest_dir_path, &date);
 
-    if (debug) fprintf(stderr, "copy \"%s\" to \"%s\"\n", autosave_path, dest_file_path);
+    fprintf(stderr, "copy \"%s\" to \"%s\"\n", autosave_path, dest_file_path);
 
     copy_in_progress = true;
 
