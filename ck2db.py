@@ -32,7 +32,7 @@ def connect(user, password):
     from warnings import filterwarnings
     filterwarnings('ignore', category = MySQLdb.Warning)
 
-    db = MySQLdb.connect(user=user, passwd=password)
+    db = MySQLdb.connect(user=user, passwd=password, charset='utf8mb4')
     c = db.cursor()
     return db, c
 
@@ -349,7 +349,10 @@ def store_characters(c, characters):
     ''', defer=True)
     print(' DONE')
 
+    print('    Removing Dead Characters...',end='')
+    sys.stdout.flush()
     characters = remove_dead(characters)
+    print(' DONE')
 
     # Character Status
     print('    Temporal Character Information...',end='')
@@ -381,30 +384,98 @@ def store_characters(c, characters):
 
 def load_titles(save, loc):
 
+    date = save['date']
     titles = {}
     for title_id, title in save['title'].items():
-        titles[title_id] = {
+        t = {
+            'title_id': title_id,
             'holder_id': title.get('holder', None),
             'name': title.get('name', loc.get(title_id, title_id)),
             'de_jure': title.get('de_jure_liege', None),
             'de_facto': title.get('liege', None),
+            'date': date,
         }
+        if type(t['de_jure']) is dict:
+            t['de_jure'] = t['de_jure']['title']
+        if type(t['de_facto']) is dict:
+            t['de_facto'] = t['de_facto']['title']
+        titles[title_id] = t
 
     return titles
 
+title_sql = '''insert into Titles values (%(title_id)s) on duplicate key update id=id;'''
+title_status_sql = '''insert into Title_Status
+    values (%(title_id)s, %(holder_id)s, %(date)s, %(name)s);'''
+
+def _store_titles(c, titles):
+    for title in titles:
+        prefix = title['title_id'][0]
+        try:
+            c.execute(title_sql, title)
+            c.execute(title_status_sql, title)
+            if prefix == "b":
+                c.execute('''
+                    insert into Baronies
+                        values (%(title_id)s, %(de_jure)s)
+                        on duplicate key update title_id=title_id;
+                    ''', title)
+                c.execute('''
+                    insert into Barony_Status
+                        values (%(title_id)s, %(date)s, %(de_facto)s);
+                    ''', title)
+            elif prefix == "c":
+                c.execute('''
+                    insert into Counties 
+                        values (%(title_id)s, %(de_jure)s)
+                        on duplicate key update title_id=title_id;
+                    ''', title)
+                c.execute('''
+                    insert into County_Status
+                        values (%(title_id)s, %(date)s, %(de_facto)s);
+                    ''', title)
+            elif prefix == "d":
+                c.execute('''
+                    insert into Duchies
+                        values (%(title_id)s)
+                        on duplicate key update title_id=title_id;
+                    ''', title)
+                c.execute('''
+                    insert into Duchy_Status
+                        values (%(title_id)s, %(date)s,
+                            %(de_jure)s, %(de_facto)s);
+                    ''', title)
+            elif prefix == "k":
+                c.execute('''
+                    insert into Kingdoms
+                        values (%(title_id)s)
+                        on duplicate key update title_id=title_id;
+                    ''', title)
+                c.execute('''
+                    insert into Kingdom_Status
+                        values (%(title_id)s, %(date)s,
+                            %(de_jure)s, %(de_facto)s);
+                    ''', title)
+            elif prefix == "e":
+                c.execute('''
+                    insert into Empires
+                        values (%(title_id)s)
+                        on duplicate key update title_id=title_id;
+                    ''', title)
+                c.execute('''
+                    insert into Empire_Status
+                        values (%(title_id)s, %(date)s);
+                    ''', title)
+            else:
+                raise ValueError("Invalid title id:" + title['title_id'])
+        except Exception as e:
+            print("\nrow is", title, file=sys.stderr)
+            raise e
+
+ranks = {'b': 4, 'c': 3, 'd': 2, 'k': 1, 'e': 0}
 def store_titles(c, titles):
-    for tid, tdict in titles.items():
-        prefix = tid[0]
-        if prefix == "b":
-            pass
-        elif prefix == "c":
-            pass
-        elif prefix == "d":
-            pass
-        elif prefix == "k":
-            pass
-        elif prefix == "e":
-            pass
+    # Sort so that leiges id can be inserted with causing an error
+    _store_titles(c, sorted(titles.values(), key=lambda i: ranks[i['title_id'][0]]))
+    return len(titles)
 
 def load_game_dynasties():
     '''Return dict of id string to name string of Dynasties from gamedata'''
@@ -473,6 +544,12 @@ def import_savefile(save_path):
     print(' DONE')
     c.execute('use ck2;')
 
+    print('Loading Localization...', end='')
+    sys.stdout.flush()
+    loc = load_loc()
+
+    print(' DONE', len(loc), 'strings')
+
     save = load_save(save_path)
 
     c.execute('insert into Snapshots (date) values (%s);', (save['date'],))
@@ -482,8 +559,16 @@ def import_savefile(save_path):
     store_dynasties(c, load_save_dynasties(save))
     print(' DONE')
 
-    print('Importing characters:')
-    store_characters(c, load_characters(save, load_fixed_characters()))
+    print('Importing characters:\n    Loading Characters...', end='')
+    sys.stdout.flush()
+    characters = load_characters(save, load_fixed_characters())
+    print(' DONE')
+    store_characters(c, characters)
+
+    print('Importing titles...', end='')
+    sys.stdout.flush()
+    store_titles(c, load_titles(save, loc))
+    print(' DONE')
 
     db.commit()
     db.close()
