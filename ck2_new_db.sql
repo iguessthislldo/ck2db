@@ -11,7 +11,7 @@ create database if not exists ck2
 use ck2;
 
 /* User =================================================================== */
-create or replace user 'ck2' identified by 'ck2password';
+create or replace user 'ck2'@localhost identified by 'ck2password';
 grant all privileges on `ck2`.* to 'ck2'@localhost;
 
 /* Basic Infomation ======================================================= */
