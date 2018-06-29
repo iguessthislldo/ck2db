@@ -11,7 +11,7 @@ fi
 for i in $1/*.json
 do
     echo "$i =================================================="
-    ./ck2db savefile "$i"
+    ./ck2db.py savefile "$i"
 done
 echo "DONE BUILDING DATABASE"
 
