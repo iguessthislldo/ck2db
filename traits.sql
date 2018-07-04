@@ -1,4 +1,5 @@
 use ck2;
+set profiling = 1;
 
 create or replace function most_common_trait(test_trait_id int unsigned)
     returns varchar(100)

@@ -12,6 +12,8 @@ create or replace function title_score(title_id varchar(100))
             else 0 end
     );
 
+select 
+
 /*
 create or replace function snapshot_titles_score(date char(10))
     returns int unsigned
