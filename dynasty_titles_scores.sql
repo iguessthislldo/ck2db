@@ -4,10 +4,10 @@ create or replace function title_score(title_id varchar(100))
     returns int unsigned
     return (
         select case substring(title_id, 1, 2)
-            when 'e_' then 256
-            when 'k_' then 10
-            when 'd_' then 5
-            when 'c_' then 2
+            when 'e_' then 356
+            when 'k_' then 64
+            when 'd_' then 16
+            when 'c_' then 4
             when 'b_' then 1
             else 0 end
     );
